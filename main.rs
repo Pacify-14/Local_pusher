@@ -1,6 +1,7 @@
 #![allow(warnings)]
 use regex::Regex;
 use std::cell::Ref;
+use std::cell::RefCell;
 use std::env;
 use std::io::{self, BufRead, Write};
 use std::process;
@@ -347,20 +348,47 @@ fn evaluate_formula(
                         return 0;
                     }
                     let value = sheet[row_idx as usize][col_idx as usize].val;
-                    static mut prev_sleep_formula: Option<String> = None;
-                    static mut prev_sleep_value: i32 = -1;
-                    unsafe {
-                        let formula_changed = prev_sleep_formula
-                            .as_ref()
-                            .map_or(true, |prev| prev != formula);
-                        if formula_changed || value != prev_sleep_value {
-                            prev_sleep_formula = Some(formula.to_string());
-                            prev_sleep_value = value;
-                            let sleep_start = Instant::now();
-                            std::thread::sleep(std::time::Duration::from_secs(value as u64));
-                            let duration = sleep_start.elapsed().as_secs_f64();
+                    thread_local! {
+                        static PREV_SLEEP_FORMULA: RefCell<Option<String>> = RefCell::new(None);
+                        static PREV_SLEEP_VALUE: RefCell<i32> = RefCell::new(-1);
+                    }
+
+                    // In your function:
+                    let formula_changed = PREV_SLEEP_FORMULA.with(|prev| {
+                        let prev = prev.borrow();
+                        prev.as_ref().map_or(true, |p| p != formula)
+                    });
+                    let value_changed = PREV_SLEEP_VALUE.with(|prev_val| {
+                        let prev_val = prev_val.borrow();
+                        *prev_val != value
+                    });
+
+                    if formula_changed {
+                        PREV_SLEEP_FORMULA.with(|prev| {
+                            *prev.borrow_mut() = Some(formula.to_string());
+                        });
+                        PREV_SLEEP_VALUE.with(|prev_val| {
+                            *prev_val.borrow_mut() = value;
+                        });
+                        let sleep_start = Instant::now();
+                        std::thread::sleep(std::time::Duration::from_secs(value as u64));
+                        let sleep_end = Instant::now();
+                        let duration = sleep_end.duration_since(sleep_start).as_secs_f64();
+                        // Assuming sleeptimetotal is another static, handle it separately if needed
+                        unsafe {
                             sleeptimetotal += duration;
-                        }
+                        } // Only if sleeptimetotal is still a static mut
+                    } else if value_changed {
+                        PREV_SLEEP_VALUE.with(|prev_val| {
+                            *prev_val.borrow_mut() = value;
+                        });
+                        let sleep_start = Instant::now();
+                        std::thread::sleep(std::time::Duration::from_secs(value as u64));
+                        let sleep_end = Instant::now();
+                        let duration = sleep_end.duration_since(sleep_start).as_secs_f64();
+                        unsafe {
+                            sleeptimetotal += duration;
+                        } // Adjust as needed
                     }
                     return value;
                 }
