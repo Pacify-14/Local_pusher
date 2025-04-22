@@ -112,7 +112,8 @@ fn print_columns(C: i32, col_offset: i32) {
 static RE_ARITH: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"^\s*([A-Z]+\d+|\d+)\s*([\+\-\*/])\s*([A-Z]+\d+|\d+)\s*$").unwrap());
 static RE_RANGE_FUNC: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^(SUM|AVG|MIN|MAX|STDEV)\([A-Z]+\d+:[A-Z]+\d+\)$").unwrap());
+    Lazy::new(|| Regex::new(r"^(SUM|AVG|MIN|MAX|STDEV)\(([A-Z]+\d+:[A-Z]+\d+)\)$").unwrap());
+
 static RE_SLEEP: Lazy<Regex> = Lazy::new(|| Regex::new(r"^SLEEP\((\d+|[A-Z]+\d+)\)$").unwrap());
 static RE_CELL: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[A-Z]+\d+$").unwrap());
 
